@@ -6,9 +6,13 @@
   <body>
     <% include partials/_header %>
 
-    <form action="/urls" method="POST" style="margin:150px;">
+    <h1> Add URL </h1>
+
+    <form action="/urls" method="POST" class="text-center" style="margin:150px;">
       <label for="longURL">Enter a URL:</label>
+
       <input id="longURL" type="text" name="longURL" placeholder="http://" style="width: 300px">
+
       <input type="submit" value="Submit">
     </form>
 

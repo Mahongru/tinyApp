@@ -8,12 +8,36 @@
     <% include partials/_header %>
   </header>
 
-
   <h1> Show URLS </h1>
 
-  <ul>
+  <ul class="list-group">
     <% Object.keys(urls).forEach( function(tinyUrl) { %>
-      <li> <%= urls[tinyUrl] %>  -  <a href="/urls/<%=tinyUrl%>"> <%= tinyUrl %> </a> </li>
+
+      <li class="list-group-item">
+        <div class="row">
+          <form method="POST" action="/urls/<%= tinyUrl %>/delete?_method=DELETE">
+
+            <div class="col-md-3">
+              <%= tinyUrl %> &rarr;  <a href="<%= urls[tinyUrl] %>" target="_blank"> <%= urls[tinyUrl] %> </a>
+            </div>
+
+            <div class="col-md-3">
+
+              <a href="/urls/<%=tinyUrl%>" class="btn btn-default" role="button">
+                <span class="glyphicon glyphicon-pencil"></span> Edit
+              </a>
+
+
+              <button type="submit" class="btn btn-default">
+                <span class="glyphicon glyphicon-trash"></span> Delete
+              </button>
+
+
+            </div>
+
+          </form>
+        </div>
+      </li>
     <% }) %>
   </ul>
 
