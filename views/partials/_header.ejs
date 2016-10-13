@@ -9,11 +9,19 @@
         </div>
 
         <ul class="nav navbar-nav">
-            <li><a href="/">Home</a></li>
             <li><a href="/urls">List</a></li>
             <li><a href="/urls/new">New</a></li>
             <li><a href="/urls.json" target="_blank">JSON</a></li>
         </ul>
+
+        <div class="text-right">
+            <p > Logged as: <%= username %></p>
+            <form action="/logout" method="POST">
+                <input type="submit" value="Logout!" class="btn btn-danger">
+            </form>
+        </div>
+
+
 
     </div>
 </nav>
