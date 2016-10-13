@@ -4,6 +4,8 @@ const express         = require("express");
 const app             = express();
 const bodyParser      = require("body-parser");
 const methodOverride  = require('method-override');
+var cookieParser      = require('cookie-parser');
+
 
 // ----------------------------------------------------------------------------
 // Config
@@ -16,6 +18,7 @@ app.set('view engine', 'ejs');
 
 app.use(bodyParser.urlencoded( { extended: false } ));
 app.use(methodOverride('_method'));
+app.use(cookieParser());
 
 // ----------------------------------------------------------------------------
 // Data
@@ -50,11 +53,29 @@ function generateRandomString(n) {
 // Routers
 
 // ----------------------------------------------------------------------------
+// Authtentication Sutff
+
+app.post("/login", (req, res) => {
+  let username = req.body.username;
+  let password = req.body.password;
+  res.cookie("username" , username).redirect("/");
+});
+
+app.post("/logout", (req, res) => {
+  let username = req.body.username;
+  let password = req.body.password;
+  res.clearCookie("username").redirect("/");
+});
+
+// ----------------------------------------------------------------------------
 // CREATE (CRUD)
 
 // Render page to add an URL
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new", { urls: {} } );
+  let templateVars = {
+    username: req.cookies["username"]
+  };
+  res.render("urls_new", templateVars);
 });
 
 // Add a new URL
@@ -73,12 +94,20 @@ app.post("/urls", (req, res) => {
 // READ (CRUD)
 
 app.get("/", (req, res) => {
-  res.render("index", { urls: {} } );
+  if(req.cookies.username) {
+    res.redirect("/urls");
+  } else {
+    res.render("login");
+  }
 });
 
 // Show all urls
 app.get("/urls", (req, res) => {
-  res.render("urls_index", { urls: urlDatabase });
+  let templateVars = {
+    urls: urlDatabase,
+    username: req.cookies["username"]
+  };
+  res.render("urls_index", templateVars);
 });
 
 // Show details of tinyUrl
@@ -90,7 +119,8 @@ app.get("/urls/:id", (req, res) => {
   if (urlDatabase[id]) {
     let templateVars = {
       shortURL: id,
-      fullURL: urlDatabase[id]
+      fullURL: urlDatabase[id],
+      username: req.cookies["username"]
     };
     res.render("urls_show", templateVars);
   } else {
