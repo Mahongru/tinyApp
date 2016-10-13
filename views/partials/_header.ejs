@@ -15,7 +15,7 @@
         </ul>
 
         <div class="text-right">
-            <p > Logged as: <%= username %></p>
+            <p > Logged as: <%= user.email %></p>
             <form action="/logout" method="POST">
                 <input type="submit" value="Logout!" class="btn btn-danger">
             </form>

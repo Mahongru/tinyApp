@@ -11,19 +11,19 @@
   <h1> Show URLS </h1>
 
   <ul class="list-group">
-    <% Object.keys(urls).forEach( function(tinyUrl) { %>
+    <% urls.forEach( function(url) { %>
 
       <li class="list-group-item">
         <div class="row">
-          <form method="POST" action="/urls/<%= tinyUrl %>/delete?_method=DELETE">
+          <form method="POST" action="/urls/<%= url.id %>/delete?_method=DELETE">
 
-            <div class="col-md-3">
-              <%= tinyUrl %> &rarr;  <a href="<%= urls[tinyUrl] %>" target="_blank"> <%= urls[tinyUrl] %> </a>
+            <div class="col-md-9">
+              <%= url.id %> &rarr;  <a href="<%= url.longUrl %>" target="_blank"> <%= url.longUrl %> </a>
             </div>
 
             <div class="col-md-3">
 
-              <a href="/urls/<%=tinyUrl%>" class="btn btn-default" role="button">
+              <a href="/urls/<%=url.id%>" class="btn btn-default" role="button">
                 <span class="glyphicon glyphicon-pencil"></span> Edit
               </a>
 
