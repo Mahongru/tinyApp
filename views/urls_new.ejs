@@ -7,14 +7,25 @@
     <% include partials/_header %>
 
     <h1> Add URL </h1>
+      <div class="row">
+        <div>
+          <form action="/urls" method="POST" class="form-horizontal">
+            <div class="form-group">
+              <label for="longURL" class="col-md-2 control-label">Enter a URL:</label>
+              <div class="col-md-8">
+                <input id="longURL" type="text" name="longURL" placeholder="http://" class="form-control">
+              </div>
 
-    <form action="/urls" method="POST" class="text-center" style="margin:150px;">
-      <label for="longURL">Enter a URL:</label>
+              <div class="col-md-2">
+                <input type="submit" value="Submit" class="btn btn-default">
+              </div>
 
-      <input id="longURL" type="text" name="longURL" placeholder="http://" style="width: 300px">
+            </div>
 
-      <input type="submit" value="Submit">
-    </form>
+
+          </form>
+      </div>
+    </div>
 
   </body>
 </html>
