@@ -4,7 +4,7 @@ const express         = require("express");
 const app             = express();
 const bodyParser      = require("body-parser");
 const methodOverride  = require('method-override');
-const cookieParser    = require('cookie-parser');
+const cookieSession   = require('cookie-session')
 const bcrypt          = require('bcrypt');
 
 // ----------------------------------------------------------------------------
@@ -18,7 +18,11 @@ app.set('view engine', 'ejs');
 
 app.use(bodyParser.urlencoded( { extended: false } ));
 app.use(methodOverride('_method'));
-app.use(cookieParser());
+
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key1', 'key2']
+}));
 
 // ----------------------------------------------------------------------------
 // Data
@@ -132,9 +136,9 @@ function findUrlById(id, idUser, arr) {
 
 app.use((req, res, next) => {
 
-  if(req.cookies.user_id)
+  if(req.session.user_id)
   {
-    req.user = findUserById(req.cookies.user_id, data.users);
+    req.user = findUserById(req.session.user_id, data.users);
     req.urls = findUrlByUserId(req.user.id, data.urls);
 
     // All EJS Template can access
@@ -203,16 +207,15 @@ app.post("/login", (req, res) => {
     if(!same) {
         return res.status(403).send("Invalid password");
     } else {
-        res.cookie("user_id", user.id);
+        //res.cookie("user_id", user.id);
+        req.session.user_id = user.id;
         res.redirect("/");
       }
   });
 });
 
 // Logout
-app.post("/logout", (req, res) => {
-  res.clearCookie("user_id").redirect("/");
-});
+app.post("/logout", (req, res) => req.session = null);
 
 // Create a new user
 app.get("/register", (req, res) => {
