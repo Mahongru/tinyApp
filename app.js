@@ -4,7 +4,7 @@ const express         = require("express");
 const app             = express();
 const bodyParser      = require("body-parser");
 const methodOverride  = require('method-override');
-const cookieSession   = require('cookie-session')
+const cookieSession   = require('cookie-session');
 const bcrypt          = require('bcrypt');
 
 // ----------------------------------------------------------------------------
@@ -94,7 +94,7 @@ function generateRandomString(n) {
 
 function findUserById(id, arr) {
   return arr.find( function(user) {
-    return id == user.id;
+    return id === user.id;
   });
 }
 
@@ -107,7 +107,7 @@ function findUserById(id, arr) {
 
 function findUrlByUserId(id, arr) {
   return arr.filter( function(url) {
-    return id == url.idUser;
+    return id === url.idUser;
   });
 }
 
@@ -121,7 +121,7 @@ function findUrlByUserId(id, arr) {
 
 function findUrlById(id, idUser, arr) {
   return arr.find( function(url) {
-    return id == url.id && idUser == url.idUser;
+    return id === url.id && idUser === url.idUser;
   });
 }
 
@@ -136,9 +136,16 @@ function findUrlById(id, idUser, arr) {
 
 app.use((req, res, next) => {
 
-  if(req.session.user_id)
-  {
+  if(req.session.user_id) {
     req.user = findUserById(req.session.user_id, data.users);
+
+    // User doesnt exists anymore, get rid of cookie
+    // It happens when sign up a user and then restart ther server
+    if(!req.user) {
+      req.session = null;
+      res.redirect('/');
+    }
+
     req.urls = findUrlByUserId(req.user.id, data.urls);
 
     // All EJS Template can access
@@ -147,14 +154,14 @@ app.use((req, res, next) => {
   }
 
   res.isAuthenticated = !!req.user;
+
   next();
 });
 
 const authenticatedMiddleware = (req, res, next) => {
 
-  if(!req.isAuthenticated)
-  {
-    return res.status(401).send('Not authenticated!!!!!');
+  if(!res.isAuthenticated) {
+    return res.status(401).send('Not authenticated');
   }
   next();
 };
@@ -170,8 +177,8 @@ const timingMiddleware = (req, res, next) => {
   const elapsed = new Date().getTime() - timestamp;
 
   // res.header('X-Middleware-Timing', elapsed);
-  console.log(`Middleware took ${elapsed} ms to complete`)
-}
+  console.log(`Middleware took ${elapsed} ms to complete`);
+};
 
 //app.use(timingMiddleware);
 
@@ -179,7 +186,7 @@ const timingMiddleware = (req, res, next) => {
 // Routers
 
 // MUST be authenticated for access any /urls*
-//app.all("/urls*", authenticatedMiddleware);
+app.all("/urls*", authenticatedMiddleware);
 
 // ----------------------------------------------------------------------------
 // Authtentication Sutff
@@ -205,17 +212,19 @@ app.post("/login", (req, res) => {
     }
 
     if(!same) {
-        return res.status(403).send("Invalid password");
+      return res.status(403).send("Invalid password");
     } else {
-        //res.cookie("user_id", user.id);
-        req.session.user_id = user.id;
-        res.redirect("/");
-      }
+      req.session.user_id = user.id;
+      res.redirect("/");
+    }
   });
 });
 
 // Logout
-app.post("/logout", (req, res) => req.session = null);
+app.post("/logout", (req, res) => {
+  req.session = null;
+  res.redirect("/");
+});
 
 // Create a new user
 app.get("/register", (req, res) => {
@@ -228,32 +237,44 @@ app.post("/register", (req, res) => {
   const id        = generateRandomString(10);
   const email     = req.body.email;
   const password  = req.body.password;
-  const hash      = bcrypt.hashSync(password,5);
+  //const hash      = bcrypt.hashSync(password,5);
 
-  // Find if email is already registered
-  const emailExists = data.users.find( function(user) {
-    return email === user.email;
-  });
+  // aSync
+  bcrypt.hash(password, 10, (err, hash) => {
 
-  // Valid inputs byt user?
-  if ((emailExists) || (email === "") || (password === "")) {
-    res.status(400).send("Email already registered! / Email or Username blank");
-  } else {
+    if(err) {
+      return res.status(500).send(err.message);
+    }
 
-    // add user
-    data.users.push(
-      {
-        id: id,
-        email: email,
-        password: hash
-      });
-
-    let user = data.users.find( function(user) {
-      return email === user.email && password === user.password;
+    // Find if email is already registered
+    const emailExists = data.users.find( function(user) {
+      return email === user.email;
     });
 
-    res.cookie("user_id", id).redirect("/");
-  }
+    // Valid inputs byt user?
+    if ((emailExists) || (email === "") || (password === "")) {
+      res.status(400).send("Email already registered! / Email or Username blank");
+    } else {
+
+      // add user
+      data.users.push(
+        {
+          id: id,
+          email: email,
+          password: hash
+        });
+
+      let user = data.users.find( function(user) {
+        return email === user.email && password === user.password;
+      });
+
+      req.session.user_id = id;
+      res.redirect("/");
+    }
+  });
+
+
+
 });
 
 // ----------------------------------------------------------------------------
@@ -312,8 +333,7 @@ app.put("/urls/:id", (req, res) => {
   const url     = findUrlById(id, req.user.id, data.urls);
 
   // Check if the user own that url
-  if(url)
-  {
+  if(url) {
     url.longUrl = req.body.longUrl;
     res.redirect("/urls");
   } else {
@@ -339,7 +359,7 @@ app.delete("/urls/:id/delete", (req, res) => {
   //   delete data.urls[i];
   // }
 
-  data.urls = data.urls.filter(url => !(url.id == id && url.idUser == req.user.id));
+  data.urls = data.urls.filter(url => !(url.id === id && url.idUser === req.user.id));
 
   res.redirect("/urls");
 });
@@ -352,7 +372,7 @@ app.get("/u/:shortURL", (req, res) => {
 
   const id = req.params.shortURL;
   let url = data.urls.find( function(url) {
-    return id == url.id;
+    return id === url.id;
   });
 
   if(url) {
@@ -364,7 +384,7 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 // Display JSON with URLS
-app.get("/urls.json", /*authenticatedMiddleware,*/ (req, res) => {
+app.get("/urls.json", (req, res) => {
   res.json(data);
 });
 
