@@ -23,7 +23,7 @@ app.use(cookieParser());
 // ----------------------------------------------------------------------------
 // Data
 
-let data = {
+const data = {
   users: [
     {
       id: "1",
@@ -101,7 +101,6 @@ function findUserById(id, arr) {
  * @param {array} array       - An array with many urls
  */
 
-
 function findUrlByUserId(id, arr) {
   return arr.filter( function(url) {
     return id == url.idUser;
@@ -123,42 +122,94 @@ function findUrlById(id, idUser, arr) {
 }
 
 // ----------------------------------------------------------------------------
+// Middlewares
+
+/**
+ * Verify if a cookie exists. If yes, get all information that will be used
+ * Set "res.locals" for data be available inside all EJS templates
+ *
+ */
+
+app.use((req, res, next) => {
+
+  if(req.cookies.user_id)
+  {
+    req.user = findUserById(req.cookies.user_id, data.users);
+    req.urls = findUrlByUserId(req.user.id, data.urls);
+
+    // All EJS Template can access
+    res.locals.user = req.user;
+    res.locals.urls = req.urls;
+  }
+
+  res.isAuthenticated = !!req.user;
+  next();
+});
+
+const authenticatedMiddleware = (req, res, next) => {
+
+  if(!req.isAuthenticated)
+  {
+    return res.status(401).send('Not authenticated!!!!!');
+  }
+  next();
+};
+
+/**
+ * Extra function for benchmark code
+ *
+ */
+
+const timingMiddleware = (req, res, next) => {
+  const timestamp = new Date().getTime();
+  next();
+  const elapsed = new Date().getTime() - timestamp;
+
+  // res.header('X-Middleware-Timing', elapsed);
+  console.log(`Middleware took ${elapsed} ms to complete`)
+}
+
+//app.use(timingMiddleware);
+
+// ----------------------------------------------------------------------------
 // Routers
+
+// MUST be authenticated for access any /urls*
+//app.all("/urls*", authenticatedMiddleware);
 
 // ----------------------------------------------------------------------------
 // Authtentication Sutff
 
-app.get("/login", (req, res) => {
-  res.render("login");
-});
+app.get("/login", (req, res) => res.render("login"));
 
 app.post("/login", (req, res) => {
-  let email     = req.body.email;
-  let password  = req.body.password;
+  // ES6 same as: email = req.body.email and password  = req.body.password;
+  const { email, password } = req.body;
 
   // Check for email
-  let user = data.users.find( function(user) {
-    return email === user.email;
-  });
+  const user = data.users.find(user => user.email === email);
 
-  //&& password === user.password
+  if(!user) {
+    return res.status(403).send("Email not found!!");
+  }
 
-  if(user) {
+  // bcrypt Async
+  bcrypt.compare(password, user.password, (err, same) => {
 
-    // Check for password hash
-    if (bcrypt.compareSync(password, user.password)) {
-      res.cookie("user_id", user.id);
-      res.redirect("/");
-    } else {
-      res.status(403).send("Password doesn't match");
+    if(err) {
+      return res.status(500).send(err.message);
     }
 
-
-  } else {
-    res.status(403).send("Email not found!!");
-  }
+    if(!same) {
+        return res.status(403).send("Invalid password");
+    } else {
+        res.cookie("user_id", user.id);
+        res.redirect("/");
+      }
+  });
 });
 
+// Logout
 app.post("/logout", (req, res) => {
   res.clearCookie("user_id").redirect("/");
 });
@@ -171,16 +222,17 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
 
   // Add user to database
-  let id        = generateRandomString(10);
-  let email     = req.body.email;
-  let password  = req.body.password;
-  let hash      = bcrypt.hashSync(password,5);
+  const id        = generateRandomString(10);
+  const email     = req.body.email;
+  const password  = req.body.password;
+  const hash      = bcrypt.hashSync(password,5);
 
   // Find if email is already registered
-  var emailExists = data.users.find( function(user) {
+  const emailExists = data.users.find( function(user) {
     return email === user.email;
   });
 
+  // Valid inputs byt user?
   if ((emailExists) || (email === "") || (password === "")) {
     res.status(400).send("Email already registered! / Email or Username blank");
   } else {
@@ -201,32 +253,19 @@ app.post("/register", (req, res) => {
   }
 });
 
-
 // ----------------------------------------------------------------------------
 // CREATE (CRUD)
 
 // Render page to add an URL
-app.get("/urls/new", (req, res) => {
-  let templateVars = {
-    user: findUserById(req.cookies["user_id"], data.users)
-  };
-
-  if(req.cookies.user_id) {
-    res.render("urls_new", templateVars);
-  } else {
-    res.sendStatus(401);
-  }
-});
+app.get("/urls/new", (req, res) => res.render("urls_new"));
 
 // Add a new URL
 app.post("/urls", (req, res) => {
 
-  const idUser = req.cookies.user_id;
-
-  data.urls.push( {
+  data.urls.push({
     id: generateRandomString(6),
     longUrl: req.body.longUrl,
-    idUser: idUser
+    idUser: req.user.id
   });
 
   res.redirect("/urls");
@@ -236,7 +275,7 @@ app.post("/urls", (req, res) => {
 // READ (CRUD)
 
 app.get("/", (req, res) => {
-  if(req.cookies.user_id) {
+  if(req.user) {
     res.redirect("/urls");
   } else {
     res.redirect("/login");
@@ -244,38 +283,19 @@ app.get("/", (req, res) => {
 });
 
 // Show all urls
-app.get("/urls", (req, res) => {
-
-  let idUser = req.cookies["user_id"];
-
-  let templateVars = {
-    urls: findUrlByUserId(idUser, data.urls),
-    user: findUserById(idUser, data.users)
-  };
-
-  if(req.cookies.user_id) {
-    res.render("urls_index", templateVars);
-  } else {
-    res.sendStatus(401);
-  }
-});
+app.get("/urls", (req, res) => res.render("urls_index"));
 
 // Show details of tinyUrl
 app.get("/urls/:id", (req, res) => {
 
-  let id      = req.params.id;
-  let idUser  = req.cookies["user_id"];
-  let url     = findUrlById(id, idUser, data.urls);
+  const id      = req.params.id;
+  const url     = findUrlById(id, req.user.id, data.urls);
 
   // In case the tinyUrl not exist return 404
   if (url) {
-    let templateVars = {
-      url: url,
-      user: findUserById(req.cookies["user_id"], data.users)
-    };
-    res.render("urls_show", templateVars);
+    res.render("urls_show", { url });
   } else {
-    res.sendStatus(404);
+    res.sendStatus(401);
   }
 });
 
@@ -286,23 +306,16 @@ app.get("/urls/:id", (req, res) => {
 app.put("/urls/:id", (req, res) => {
 
   const id      = req.params.id;
-  const idUser  = req.cookies["user_id"];
-  const url     = findUrlById(id, idUser, data.urls);
-
+  const url     = findUrlById(id, req.user.id, data.urls);
 
   // Check if the user own that url
-  if(url) {
-    const i = data.urls.findIndex( function(url) {
-      return id == url.id && idUser == url.idUser;
-    });
-
-    data.urls[i].longUrl = req.body.longUrl;
+  if(url)
+  {
+    url.longUrl = req.body.longUrl;
     res.redirect("/urls");
   } else {
     res.sendStatus(400);
   }
-
-
 });
 
 // ----------------------------------------------------------------------------
@@ -312,17 +325,18 @@ app.put("/urls/:id", (req, res) => {
 app.delete("/urls/:id/delete", (req, res) => {
 
   const id      = req.params.id;
-  const idUser  = req.cookies["user_id"];
-  const url     = findUrlById(id, idUser, data.urls);
+  const url     = findUrlById(id, req.user.id, data.urls);
 
   // Check if the user own that url
-  if (url) {
-    const i = data.urls.findIndex( function(url) {
-      return id == url.id && idUser == url.idUser;
-    });
+  // if (url) {
+  //   const i = data.urls.findIndex( function(url) {
+  //     return id == url.id && idUser == url.idUser;
+  //   });
 
-    delete data.urls[i];
-  }
+  //   delete data.urls[i];
+  // }
+
+  data.urls = data.urls.filter(url => !(url.id == id && url.idUser == req.user.id));
 
   res.redirect("/urls");
 });
@@ -347,7 +361,7 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 // Display JSON with URLS
-app.get("/urls.json", (req, res) => {
+app.get("/urls.json", /*authenticatedMiddleware,*/ (req, res) => {
   res.json(data);
 });
 
@@ -357,3 +371,4 @@ app.get("/urls.json", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
+
