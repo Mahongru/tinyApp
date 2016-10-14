@@ -18,7 +18,14 @@
           <form method="POST" action="/urls/<%= url.id %>/delete?_method=DELETE">
 
             <div class="col-md-9">
-              <%= url.id %> &rarr;  <a href="<%= url.longUrl %>" target="_blank"> <%= url.longUrl %> </a>
+
+              <a onclick="copyToClipboard('<%= url.id %>')" class="btn btn-default" role="button">
+                  <span class="glyphicon glyphicon-file"></span>
+                </a>
+
+              <a href="/u/<%= url.id %>" target="_blank"><%= url.id %> </a> &rarr;
+
+              <a href="<%= url.longUrl %>" target="_blank"> <%= url.longUrl %> </a>
             </div>
 
             <div class="col-md-3">
@@ -41,7 +48,11 @@
     <% }) %>
   </ul>
 
-
+  <script>
+    function copyToClipboard(url) {
+      copy(window.location.hostname + ":" + window.location.port + "/u/" + url);
+    }
+  </script>
 
 </body>
 </html>

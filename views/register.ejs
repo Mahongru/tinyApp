@@ -7,7 +7,7 @@
   <div class="col-md-6  col-md-offset-3">
     <h1 class="text-center"> Sign Up </h1>
 
-    <form action="/register" method="POST">
+    <form action="/register" method="POST" name="register" onsubmit="return isValid()">
       <div class="row">
         <label for="email"> Email </label>
         <input type="email" name="email" class="form-control">
@@ -18,10 +18,45 @@
         <input type="password" name="password" class="form-control">
       </div>
 
+      <div class="row">
+        <label for="password"> Re-enter your Password (they must match)</label>
+        <input type="password" name="password2" class="form-control" onkeyup="isValid()">
+      </div>
+
       <div class="row text-right">
         <input type="submit" value="Register" class="btn btn-info">
       </div>
+
+      <div class="alert alert-danger" style="display:none" id="alert">
+        <strong>Error!</strong> The passwords MUST match
+      </div>
+
     </form>
   </div>
+
+  <script type="text/javascript">
+    function isValid() {
+      var alertBox = document.getElementById('alert');
+
+      // ----------------------------------------------------------------------
+      // Password Match?
+
+      var password  = document.forms["register"]["password"].value;
+      var match     = document.forms["register"]["password2"].value;
+
+      if (password !== match) {
+        alertBox.style.display = 'block';
+        return false;
+      }
+
+      // ----------------------------------------------------------------------
+
+
+
+      alertBox.style.display = 'none';
+      return true;
+    }
+  </script>
+
 </body>
 </html>

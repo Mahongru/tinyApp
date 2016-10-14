@@ -6,6 +6,8 @@ const bodyParser      = require("body-parser");
 const methodOverride  = require('method-override');
 const cookieSession   = require('cookie-session');
 const bcrypt          = require('bcrypt');
+const uuid            = require('uuid');
+
 
 // ----------------------------------------------------------------------------
 // Config
@@ -47,17 +49,17 @@ const data = {
     {
       id: "b2xVn2",
       longUrl: "http://www.lighthouselabs.ca",
-      idUser: "1"
+      user_id: "1"
     },
     {
       id: "9sm5xK",
       longUrl: "http://www.google.com",
-      idUser: "1"
+      user_id: "1"
     },
     {
       id: "ui2h3",
       longUrl: "http://www.globo.com.br",
-      idUser: "2"
+      user_id: "2"
     }
 
   ]
@@ -107,21 +109,21 @@ function findUserById(id, arr) {
 
 function findUrlByUserId(id, arr) {
   return arr.filter( function(url) {
-    return id === url.idUser;
+    return id === url.user_id;
   });
 }
 
 /**
- * Return an URL by ID, only if the idUser own the url
+ * Return an URL by ID, only if the user_id own the url
  *
  * @param {integer} id        - URL id - ie. Short Url
- * @param {integer} idUser    - User's id
+ * @param {integer} user_id    - User's id
  * @param {array} array       - An array with many urls
  */
 
-function findUrlById(id, idUser, arr) {
+function findUrlById(id, user_id, arr) {
   return arr.find( function(url) {
-    return id === url.id && idUser === url.idUser;
+    return id === url.id && user_id === url.user_id;
   });
 }
 
@@ -143,7 +145,7 @@ app.use((req, res, next) => {
     // It happens when sign up a user and then restart ther server
     if(!req.user) {
       req.session = null;
-      res.redirect('/');
+      return res.redirect('/');
     }
 
     req.urls = findUrlByUserId(req.user.id, data.urls);
@@ -165,22 +167,6 @@ const authenticatedMiddleware = (req, res, next) => {
   }
   next();
 };
-
-/**
- * Extra function for benchmark code
- *
- */
-
-const timingMiddleware = (req, res, next) => {
-  const timestamp = new Date().getTime();
-  next();
-  const elapsed = new Date().getTime() - timestamp;
-
-  // res.header('X-Middleware-Timing', elapsed);
-  console.log(`Middleware took ${elapsed} ms to complete`);
-};
-
-//app.use(timingMiddleware);
 
 // ----------------------------------------------------------------------------
 // Routers
@@ -234,10 +220,10 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
 
   // Add user to database
-  const id        = generateRandomString(10);
+  const id        = uuid.v1();
   const email     = req.body.email;
   const password  = req.body.password;
-  //const hash      = bcrypt.hashSync(password,5);
+  const password2 = req.body.password2;
 
   // aSync
   bcrypt.hash(password, 10, (err, hash) => {
@@ -251,8 +237,8 @@ app.post("/register", (req, res) => {
       return email === user.email;
     });
 
-    // Valid inputs byt user?
-    if ((emailExists) || (email === "") || (password === "")) {
+    // Valid inputs by user?
+    if ((emailExists) || (email === "") || (password === "") || (password !== password2)) {
       res.status(400).send("Email already registered! / Email or Username blank");
     } else {
 
@@ -272,9 +258,6 @@ app.post("/register", (req, res) => {
       res.redirect("/");
     }
   });
-
-
-
 });
 
 // ----------------------------------------------------------------------------
@@ -286,10 +269,16 @@ app.get("/urls/new", (req, res) => res.render("urls_new"));
 // Add a new URL
 app.post("/urls", (req, res) => {
 
+  let longUrl = req.body.longUrl;
+
+  if ( longUrl.indexOf("http://") < 0) {
+    longUrl = "http://" + longUrl
+  }
+
   data.urls.push({
     id: generateRandomString(6),
-    longUrl: req.body.longUrl,
-    idUser: req.user.id
+    longUrl ,
+    user_id: req.user.id
   });
 
   res.redirect("/urls");
@@ -350,16 +339,7 @@ app.delete("/urls/:id/delete", (req, res) => {
   const id      = req.params.id;
   const url     = findUrlById(id, req.user.id, data.urls);
 
-  // Check if the user own that url
-  // if (url) {
-  //   const i = data.urls.findIndex( function(url) {
-  //     return id == url.id && idUser == url.idUser;
-  //   });
-
-  //   delete data.urls[i];
-  // }
-
-  data.urls = data.urls.filter(url => !(url.id === id && url.idUser === req.user.id));
+  data.urls = data.urls.filter(url => !(url.id === id && url.user_id === req.user.id));
 
   res.redirect("/urls");
 });
@@ -370,7 +350,8 @@ app.delete("/urls/:id/delete", (req, res) => {
 // Redirect from shortUrl to LongUrl
 app.get("/u/:shortURL", (req, res) => {
 
-  const id = req.params.shortURL;
+  const id  = req.params.shortURL;
+
   let url = data.urls.find( function(url) {
     return id === url.id;
   });
@@ -380,16 +361,13 @@ app.get("/u/:shortURL", (req, res) => {
   } else {
     res.sendStatus(404);
   }
-
-});
-
-// Display JSON with URLS
-app.get("/urls.json", (req, res) => {
-  res.json(data);
 });
 
 // ----------------------------------------------------------------------------
 // Listening for incoming connections
+
+app.get("/json", (req, res) => res.send(data));
+
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
