@@ -61,6 +61,8 @@ const data = {
       longUrl: "http://www.globo.com.br",
       user_id: "2"
     }
+  ],
+  logs: [
 
   ]
 
@@ -150,9 +152,11 @@ app.use((req, res, next) => {
 
     req.urls = findUrlByUserId(req.user.id, data.urls);
 
+
     // All EJS Template can access
     res.locals.user = req.user;
     res.locals.urls = req.urls;
+    res.locals.logs = data.logs;
   }
 
   res.isAuthenticated = !!req.user;
@@ -357,10 +361,28 @@ app.get("/u/:shortURL", (req, res) => {
   });
 
   if(url) {
+
+    // Count numbers of visitors
+    url.count ? url.count += 1 : url.count = 1;
+
+    // Create a cookie for identify users
+    if (!req.session.visitor_id) {
+      req.session.visitor_id = uuid.v1();
+      url.uniqCount ? url.uniqCount += 1 : url.uniqCount = 1;
+    }
+
+    // Log
+    data.logs.push({
+      id: id,
+      timestamp: new Date().getTime(),
+      visitor_id: req.session.visitor_id
+    });
+
     res.redirect(url.longUrl);
   } else {
     res.sendStatus(404);
   }
+
 });
 
 // ----------------------------------------------------------------------------
