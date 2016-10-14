@@ -4,8 +4,8 @@ const express         = require("express");
 const app             = express();
 const bodyParser      = require("body-parser");
 const methodOverride  = require('method-override');
-var cookieParser      = require('cookie-parser');
-
+const cookieParser    = require('cookie-parser');
+const bcrypt          = require('bcrypt');
 
 // ----------------------------------------------------------------------------
 // Config
@@ -28,13 +28,14 @@ let data = {
     {
       id: "1",
       email: "paulocamboim@gmail.com",
-      password: "123"
+      //123
+      password: "$2a$05$JwWUQH7pt29/stg559a5EOJxYHNqIs568Q3BmwGtYIhzqvpwC0hu."
     },
 
     {
       id: "2",
       email: "email@email.com",
-      password: "1234"
+      password: "$2a$05$JwWUQH7pt29/stg559a5EOJxYHNqIs568Q3BmwGtYIhzqvpwC0hu."
     }
   ],
 
@@ -127,23 +128,34 @@ function findUrlById(id, idUser, arr) {
 // ----------------------------------------------------------------------------
 // Authtentication Sutff
 
-app.get("/login", (req,res) => {
+app.get("/login", (req, res) => {
   res.render("login");
 });
 
 app.post("/login", (req, res) => {
-  let email = req.body.email;
-  let password = req.body.password;
+  let email     = req.body.email;
+  let password  = req.body.password;
 
-  var user = data.users.find( function(user) {
-    return email === user.email && password === user.password
+  // Check for email
+  let user = data.users.find( function(user) {
+    return email === user.email;
   });
 
+  //&& password === user.password
+
   if(user) {
-    res.cookie("user_id" , user.id);
-    res.redirect("/");
+
+    // Check for password hash
+    if (bcrypt.compareSync(password, user.password)) {
+      res.cookie("user_id", user.id);
+      res.redirect("/");
+    } else {
+      res.status(403).send("Password doesn't match");
+    }
+
+
   } else {
-    res.status(403).send("Email not found or Passoword incorrect");
+    res.status(403).send("Email not found!!");
   }
 });
 
@@ -152,27 +164,39 @@ app.post("/logout", (req, res) => {
 });
 
 // Create a new user
-app.get("/register", (req,res) => {
+app.get("/register", (req, res) => {
   res.render("register");
 });
 
-app.post("/register", (req,res) => {
+app.post("/register", (req, res) => {
 
   // Add user to database
   let id        = generateRandomString(10);
   let email     = req.body.email;
   let password  = req.body.password;
+  let hash      = bcrypt.hashSync(password,5);
 
   // Find if email is already registered
   var emailExists = data.users.find( function(user) {
-    return email === user.email
+    return email === user.email;
   });
 
   if ((emailExists) || (email === "") || (password === "")) {
     res.status(400).send("Email already registered! / Email or Username blank");
   } else {
+
     // add user
-    data.users.push({ id: id, email: email, password: password });
+    data.users.push(
+      {
+        id: id,
+        email: email,
+        password: hash
+      });
+
+    let user = data.users.find( function(user) {
+      return email === user.email && password === user.password;
+    });
+
     res.cookie("user_id", id).redirect("/");
   }
 });
@@ -272,8 +296,8 @@ app.put("/urls/:id", (req, res) => {
       return id == url.id && idUser == url.idUser;
     });
 
-   data.urls[i].longUrl = req.body.longUrl;
-   res.redirect("/urls");
+    data.urls[i].longUrl = req.body.longUrl;
+    res.redirect("/urls");
   } else {
     res.sendStatus(400);
   }
@@ -324,7 +348,7 @@ app.get("/u/:shortURL", (req, res) => {
 
 // Display JSON with URLS
 app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
+  res.json(data);
 });
 
 // ----------------------------------------------------------------------------
